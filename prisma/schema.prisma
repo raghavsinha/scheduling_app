@@ -1,0 +1,512 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserType {
+  ADMIN
+  EMPLOYEE
+}
+
+enum DayType {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum ScheduleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CoverRequestStatus {
+  OPEN
+  PENDING_USER
+  PENDING_ADMIN
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED
+}
+
+enum CoverRequestType {
+  COVER
+  SWAP
+}
+
+enum AvailabilityEntryMode {
+  TIME
+  SHIFT
+}
+
+// ============================================================
+// GLOBAL IDENTITY
+// ============================================================
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  email        String   @unique
+  phoneNumber  String?  @map("phone_number")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  ownedStores      Store[]             @relation("StoreOwner")
+  storeMemberships StoreUser[]
+  qualifications   StoreUserWorkType[]
+  availability     UserAvailability[]
+
+  assignments ShiftAssignment[] @relation("AssignedEmployee")
+  assignedBy  ShiftAssignment[] @relation("AssignmentCreator")
+
+  coverRequestsMade  CoverRequest[]      @relation("CoverRequester")
+  coverRequestsTaken CoverRequest[]      @relation("CoveringUser")
+  coverEvents        CoverRequestEvent[]
+
+  schedulesCreated   Schedule[] @relation("ScheduleCreator")
+  schedulesPublished Schedule[] @relation("SchedulePublisher")
+
+  @@map("users")
+}
+
+// ============================================================
+// STORE
+// ============================================================
+
+model Store {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  ownerUserId String   @map("owner_user_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  owner User @relation("StoreOwner", fields: [ownerUserId], references: [id])
+
+  users             StoreUser[]
+  workTypes         WorkType[]
+  userWorkTypes     StoreUserWorkType[]
+  shiftTypes        ShiftType[]
+  shiftTypeDayTimes ShiftTypeDayTime[]
+
+  weekShiftRequirements WeekShiftRequirement[]
+  weeklyTemplates       WeeklyTemplate[]
+
+  schedules        Schedule[]
+  scheduleWeeks    ScheduleWeek[]
+  scheduleDays     ScheduleDay[]
+  shiftAssignments ShiftAssignment[]
+
+  availabilityPeriods     AvailabilityPeriod[]
+  dayAvailability         DayAvailability[]
+  availabilityPreferences AvailabilityShiftPreference[]
+  userAvailability        UserAvailability[]
+
+  coverRequests      CoverRequest[]
+  coverRequestEvents CoverRequestEvent[]
+
+  @@map("stores")
+}
+
+// ============================================================
+// STORE USERS
+// ============================================================
+
+model StoreUser {
+  storeId    String    @map("store_id") @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  userType   UserType  @map("user_type")
+  joinedAt   DateTime  @default(now()) @map("joined_at")
+  archivedAt DateTime? @map("archived_at")
+
+  store Store @relation(fields: [storeId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  workTypes StoreUserWorkType[]
+
+  @@id([storeId, userId])
+  @@index([storeId])
+  @@index([userId])
+  @@map("store_users")
+}
+
+// ============================================================
+// WORK TYPES
+// ============================================================
+
+model WorkType {
+  id           String  @id @default(uuid()) @db.Uuid
+  storeId      String  @map("store_id") @db.Uuid
+  name         String
+  description  String?
+  displayOrder Int     @default(0) @map("display_order")
+  archived     Boolean @default(false)
+
+  store Store @relation(fields: [storeId], references: [id])
+
+  users        StoreUserWorkType[]
+  requirements WeekShiftRequirement[]
+  assignments  ShiftAssignment[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("work_types")
+}
+
+model StoreUserWorkType {
+  storeId    String @map("store_id") @db.Uuid
+  userId     String @map("user_id") @db.Uuid
+  workTypeId String @map("work_type_id") @db.Uuid
+
+  store    Store    @relation(fields: [storeId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+  workType WorkType @relation(fields: [workTypeId], references: [id])
+
+  membership StoreUser @relation(fields: [storeId, userId], references: [storeId, userId])
+
+  @@id([storeId, userId, workTypeId])
+  @@index([storeId, userId])
+  @@index([workTypeId])
+  @@map("store_user_work_types")
+}
+
+// ============================================================
+// SHIFT TEMPLATE CONFIGURATION
+// ============================================================
+
+model ShiftType {
+  id          String  @id @default(uuid()) @db.Uuid
+  storeId     String  @map("store_id") @db.Uuid
+  name        String
+  description String?
+  archived    Boolean @default(false)
+
+  store Store @relation(fields: [storeId], references: [id])
+
+  dayTimes                ShiftTypeDayTime[]
+  requirements            WeekShiftRequirement[]
+  assignments             ShiftAssignment[]
+  availabilityPreferences AvailabilityShiftPreference[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("shift_types")
+}
+
+model ShiftTypeDayTime {
+  id          String  @id @default(uuid()) @db.Uuid
+  storeId     String  @map("store_id") @db.Uuid
+  shiftTypeId String  @map("shift_type_id") @db.Uuid
+  dayOfWeek   DayType @map("day_of_week")
+
+  startTime DateTime @map("start_time") @db.Time(0)
+  endTime   DateTime @map("end_time") @db.Time(0)
+
+  store     Store     @relation(fields: [storeId], references: [id])
+  shiftType ShiftType @relation(fields: [shiftTypeId], references: [id])
+
+  @@unique([shiftTypeId, dayOfWeek])
+  @@index([storeId])
+  @@map("shift_type_day_times")
+}
+
+model WeekShiftRequirement {
+  id            String  @id @default(uuid()) @db.Uuid
+  storeId       String  @map("store_id") @db.Uuid
+  shiftTypeId   String  @map("shift_type_id") @db.Uuid
+  dayOfWeek     DayType @map("day_of_week")
+  workTypeId    String  @map("work_type_id") @db.Uuid
+  requiredCount Int     @map("required_count")
+
+  store            Store          @relation(fields: [storeId], references: [id])
+  shiftType        ShiftType      @relation(fields: [shiftTypeId], references: [id])
+  workType         WorkType       @relation(fields: [workTypeId], references: [id])
+  weeklyTemplateId String         @map("weekly_template_id") @db.Uuid
+  weeklyTemplate   WeeklyTemplate @relation(fields: [weeklyTemplateId], references: [id])
+
+  @@unique([weeklyTemplateId, shiftTypeId, dayOfWeek, workTypeId])
+  @@index([storeId])
+  @@index([weeklyTemplateId])
+  @@map("week_shift_requirements")
+}
+
+// ============================================================
+// WEEKLY TEMPLATES
+// ============================================================
+
+model WeeklyTemplate {
+  id        String  @id @default(uuid()) @db.Uuid
+  storeId   String  @map("store_id") @db.Uuid
+  name      String
+  isDefault Boolean @default(false) @map("is_default")
+  archived  Boolean @default(false)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  store Store @relation(fields: [storeId], references: [id])
+
+  requirements  WeekShiftRequirement[]
+  scheduleWeeks ScheduleWeek[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("weekly_templates")
+}
+
+// ============================================================
+// CONCRETE SCHEDULE
+// ============================================================
+
+model Schedule {
+  id      String @id @default(uuid()) @db.Uuid
+  storeId String @map("store_id") @db.Uuid
+
+  status ScheduleStatus @default(DRAFT)
+
+  createdBy   String  @map("created_by") @db.Uuid
+  publishedBy String? @map("published_by") @db.Uuid
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  publishedAt DateTime? @map("published_at")
+
+  store     Store          @relation(fields: [storeId], references: [id])
+  creator   User           @relation("ScheduleCreator", fields: [createdBy], references: [id])
+  publisher User?          @relation("SchedulePublisher", fields: [publishedBy], references: [id])
+  weeks     ScheduleWeek[]
+
+  @@index([storeId])
+  @@map("schedules")
+}
+
+model ScheduleWeek {
+  id               String  @id @default(uuid()) @db.Uuid
+  storeId          String  @map("store_id") @db.Uuid
+  scheduleId       String  @map("schedule_id") @db.Uuid
+  weeklyTemplateId String? @map("weekly_template_id") @db.Uuid
+
+  weekStartDate DateTime @map("week_start_date") @db.Date
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  schedule       Schedule        @relation(fields: [scheduleId], references: [id])
+  weeklyTemplate WeeklyTemplate? @relation(fields: [weeklyTemplateId], references: [id])
+
+  days ScheduleDay[]
+
+  store Store @relation(fields: [storeId], references: [id])
+
+  @@unique([scheduleId, weekStartDate])
+  @@index([scheduleId])
+  @@index([weeklyTemplateId])
+  @@map("schedule_weeks")
+}
+
+model ScheduleDay {
+  id             String @id @default(uuid()) @db.Uuid
+  storeId        String @map("store_id") @db.Uuid
+  scheduleWeekId String @map("schedule_week_id") @db.Uuid
+
+  date      DateTime @db.Date
+  dayOfWeek DayType  @map("day_of_week")
+
+  adminNotes    String? @map("admin_notes")
+  employeeNotes String? @map("employee_notes")
+
+  store        Store        @relation(fields: [storeId], references: [id])
+  scheduleWeek ScheduleWeek @relation(fields: [scheduleWeekId], references: [id])
+
+  assignments ShiftAssignment[]
+
+  @@unique([scheduleWeekId, date])
+  @@index([scheduleWeekId])
+  @@index([storeId, date])
+  @@map("schedule_days")
+}
+
+model ShiftAssignment {
+  id            String @id @default(uuid()) @db.Uuid
+  storeId       String @map("store_id") @db.Uuid
+  scheduleDayId String @map("schedule_day_id") @db.Uuid
+
+  userId     String? @map("user_id") @db.Uuid
+  workTypeId String  @map("work_type_id") @db.Uuid
+
+  // Nullable because changing the weekly template can intentionally
+  // invalidate the template association while retaining exact hours.
+  shiftTypeId String? @map("shift_type_id") @db.Uuid
+
+  startTime DateTime @map("start_time") @db.Time(0)
+  endTime   DateTime @map("end_time") @db.Time(0)
+
+  assignedBy String? @map("assigned_by") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  store       Store       @relation(fields: [storeId], references: [id])
+  scheduleDay ScheduleDay @relation(fields: [scheduleDayId], references: [id])
+
+  employee  User?      @relation("AssignedEmployee", fields: [userId], references: [id])
+  workType  WorkType   @relation(fields: [workTypeId], references: [id])
+  shiftType ShiftType? @relation(fields: [shiftTypeId], references: [id])
+
+  assigner User? @relation("AssignmentCreator", fields: [assignedBy], references: [id])
+
+  coverRequests     CoverRequest[] @relation("CoveredAssignment")
+  swapCoverRequests CoverRequest[] @relation("SwapAssignment")
+
+  @@index([storeId, scheduleDayId])
+  @@index([storeId, userId])
+  @@index([workTypeId])
+  @@index([shiftTypeId])
+  @@map("shift_assignments")
+}
+
+// ============================================================
+// AVAILABILITY
+// ============================================================
+
+model AvailabilityPeriod {
+  id        String                @id @default(uuid()) @db.Uuid
+  storeId   String                @map("store_id") @db.Uuid
+  startDate DateTime              @map("start_date") @db.Date
+  endDate   DateTime              @map("end_date") @db.Date
+  entryMode AvailabilityEntryMode @map("entry_mode")
+  isOpen    Boolean               @default(true) @map("is_open")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  store Store @relation(fields: [storeId], references: [id])
+
+  userAvailability UserAvailability[]
+
+  @@unique([storeId, startDate, endDate])
+  @@index([storeId])
+  @@map("availability_periods")
+}
+
+model DayAvailability {
+  id                 String   @id @default(uuid()) @db.Uuid
+  storeId            String   @map("store_id") @db.Uuid
+  userAvailabilityId String   @map("user_availability_id") @db.Uuid
+  date               DateTime @db.Date
+
+  startTime DateTime @map("start_time") @db.Time(0)
+  endTime   DateTime @map("end_time") @db.Time(0)
+
+  store Store @relation(fields: [storeId], references: [id])
+
+  userAvailability UserAvailability @relation(fields: [userAvailabilityId], references: [id])
+
+  @@index([storeId, date])
+  @@index([userAvailabilityId])
+  @@map("day_availability")
+}
+
+model AvailabilityShiftPreference {
+  id                 String @id @default(uuid()) @db.Uuid
+  storeId            String @map("store_id") @db.Uuid
+  userAvailabilityId String @map("user_availability_id") @db.Uuid
+
+  dayOfWeek   DayType @map("day_of_week")
+  shiftTypeId String  @map("shift_type_id") @db.Uuid
+
+  store            Store            @relation(fields: [storeId], references: [id])
+  userAvailability UserAvailability @relation(fields: [userAvailabilityId], references: [id])
+  shiftType        ShiftType        @relation(fields: [shiftTypeId], references: [id])
+
+  @@unique([userAvailabilityId, dayOfWeek, shiftTypeId])
+  @@index([storeId])
+  @@map("availability_shift_preferences")
+}
+
+model UserAvailability {
+  id                   String @id @default(uuid()) @db.Uuid
+  storeId              String @map("store_id") @db.Uuid
+  availabilityPeriodId String @map("availability_period_id") @db.Uuid
+  userId               String @map("user_id") @db.Uuid
+
+  preferredNumShifts Int? @map("preferred_num_shifts")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  store              Store              @relation(fields: [storeId], references: [id])
+  availabilityPeriod AvailabilityPeriod @relation(fields: [availabilityPeriodId], references: [id])
+  user               User               @relation(fields: [userId], references: [id])
+
+  dayAvailability  DayAvailability[]
+  shiftPreferences AvailabilityShiftPreference[]
+
+  @@unique([availabilityPeriodId, userId])
+  @@index([storeId])
+  @@index([userId])
+  @@map("user_availability")
+}
+
+// ============================================================
+// COVER REQUESTS
+// ============================================================
+
+model CoverRequest {
+  id                String           @id @default(uuid()) @db.Uuid
+  storeId           String           @map("store_id") @db.Uuid
+  shiftAssignmentId String           @map("shift_assignment_id") @db.Uuid
+  swapAssignmentId  String?          @map("swap_assignment_id") @db.Uuid
+  requestType       CoverRequestType @default(COVER) @map("request_type")
+
+  requestingUserId String  @map("requesting_user_id") @db.Uuid
+  coveringUserId   String? @map("covering_user_id") @db.Uuid
+
+  status CoverRequestStatus @default(OPEN)
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  resolvedAt DateTime? @map("resolved_at")
+
+  store          Store            @relation(fields: [storeId], references: [id])
+  assignment     ShiftAssignment  @relation("CoveredAssignment", fields: [shiftAssignmentId], references: [id])
+  swapAssignment ShiftAssignment? @relation("SwapAssignment", fields: [swapAssignmentId], references: [id])
+
+  requester    User  @relation("CoverRequester", fields: [requestingUserId], references: [id])
+  coveringUser User? @relation("CoveringUser", fields: [coveringUserId], references: [id])
+
+  events CoverRequestEvent[]
+
+  @@index([storeId, status])
+  @@index([shiftAssignmentId])
+  @@index([swapAssignmentId])
+  @@map("cover_requests")
+}
+
+model CoverRequestEvent {
+  id             String @id @default(uuid()) @db.Uuid
+  storeId        String @map("store_id") @db.Uuid
+  coverRequestId String @map("cover_request_id") @db.Uuid
+  actorUserId    String @map("actor_user_id") @db.Uuid
+
+  eventType String   @map("event_type")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  store        Store        @relation(fields: [storeId], references: [id])
+  coverRequest CoverRequest @relation(fields: [coverRequestId], references: [id])
+  actor        User         @relation(fields: [actorUserId], references: [id])
+
+  @@index([storeId])
+  @@index([coverRequestId])
+  @@map("cover_request_events")
+}

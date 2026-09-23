@@ -1,0 +1,129 @@
+scheduling_app/
+├── prisma/
+│   ├── schema.prisma
+│   ├── seed.ts
+│   └── migrations/                    [rebuild baseline]
+├── src/
+│   ├── common/errors/
+│   │   ├── conflict.error.ts
+│   │   ├── not-found.error.ts
+│   │   └── validation.error.ts
+│   ├── database/
+│   │   ├── database-client.type.ts
+│   │   └── prisma.client.ts
+│   ├── domain/
+│   │   ├── common.types.ts
+│   │   ├── user.model.ts
+│   │   ├── store.model.ts
+│   │   ├── store-user.model.ts
+│   │   ├── work-type.model.ts
+│   │   ├── shift-type.model.ts
+│   │   ├── weekly-template.model.ts
+│   │   ├── availability.model.ts
+│   │   ├── schedule.model.ts
+│   │   └── cover-request.model.ts
+│   ├── handlers/
+│   │   ├── stores/
+│   │   │   ├── create-store.handler.ts
+│   │   │   ├── get-store.handler.ts
+│   │   │   ├── list-stores.handler.ts
+│   │   │   ├── update-store.handler.ts
+│   │   │   ├── delete-store.handler.ts
+│   │   │   ├── store.mapper.ts
+│   │   │   └── stores.spec.ts
+│   │   ├── store-users/
+│   │   │   ├── add-store-user.handler.ts
+│   │   │   ├── get-store-user.handler.ts
+│   │   │   ├── list-store-users.handler.ts
+│   │   │   ├── update-store-user.handler.ts
+│   │   │   ├── remove-store-user.handler.ts
+│   │   │   ├── set-store-user-work-types.handler.ts
+│   │   │   ├── store-user.mapper.ts
+│   │   │   └── store-users.spec.ts
+│   │   ├── work-types/
+│   │   │   ├── create-work-type.handler.ts
+│   │   │   ├── get-work-type.handler.ts
+│   │   │   ├── list-work-types.handler.ts
+│   │   │   ├── update-work-type.handler.ts
+│   │   │   ├── delete-work-type.handler.ts
+│   │   │   ├── work-type.mapper.ts
+│   │   │   └── work-types.spec.ts
+│   │   ├── shift-types/
+│   │   │   ├── create-shift-type.handler.ts
+│   │   │   ├── get-shift-type.handler.ts
+│   │   │   ├── list-shift-types.handler.ts
+│   │   │   ├── update-shift-type.handler.ts
+│   │   │   ├── delete-shift-type.handler.ts
+│   │   │   ├── shift-type.mapper.ts
+│   │   │   └── shift-types.spec.ts
+│   │   ├── weekly-templates/
+│   │   │   ├── create-weekly-template.handler.ts
+│   │   │   ├── get-weekly-template.handler.ts
+│   │   │   ├── list-weekly-templates.handler.ts
+│   │   │   ├── update-weekly-template.handler.ts
+│   │   │   ├── delete-weekly-template.handler.ts
+│   │   │   ├── weekly-template.mapper.ts
+│   │   │   └── weekly-templates.spec.ts
+│   │   ├── availability/
+│   │   │   ├── [availability-period handlers and tests]
+│   │   │   └── [user-availability handlers and tests]
+│   │   ├── schedules/
+│   │   │   ├── create-schedule.handler.ts
+│   │   │   ├── get-schedule.handler.ts
+│   │   │   ├── list-schedules.handler.ts
+│   │   │   ├── add-schedule-week.handler.ts
+│   │   │   ├── remove-schedule-week.handler.ts
+│   │   │   ├── publish-schedule.handler.ts
+│   │   │   ├── delete-schedule.handler.ts
+│   │   │   ├── schedule-generation.utils.ts
+│   │   │   ├── schedule.mapper.ts
+│   │   │   └── schedules.spec.ts
+│   │   ├── assignments/
+│   │   │   ├── create-assignment.handler.ts
+│   │   │   ├── get-assignment.handler.ts
+│   │   │   ├── update-assignment.handler.ts
+│   │   │   ├── delete-assignment.handler.ts
+│   │   │   ├── assignment-validation.utils.ts
+│   │   │   ├── assignment.mapper.ts
+│   │   │   └── assignments.spec.ts
+│   │   ├── schedule-builder/
+│   │   │   ├── get-schedule-builder.handler.ts
+│   │   │   ├── get-assignment-eligibility.handler.ts
+│   │   │   ├── validate-schedule.handler.ts
+│   │   │   ├── schedule-builder.types.ts
+│   │   │   ├── schedule-builder.utils.ts
+│   │   │   └── schedule-builder.spec.ts
+│   │   └── cover-requests/
+│   │       ├── cover-request.types.ts
+│   │       ├── cover-request.mapper.ts
+│   │       ├── cover-request.utils.ts
+│   │       ├── validate-cover-request.handler.ts
+│   │       ├── create-cover-request.handler.ts
+│   │       ├── get-cover-request.handler.ts
+│   │       ├── list-cover-requests.handler.ts
+│   │       ├── accept-cover-request.handler.ts
+│   │       ├── decline-cover-request.handler.ts
+│   │       ├── redirect-cover-request.handler.ts
+│   │       ├── make-cover-request-open.handler.ts
+│   │       ├── cancel-cover-request.handler.ts
+│   │       └── cover-requests.spec.ts
+│   ├── dev/
+│   │   ├── test-stores.ts
+│   │   ├── test-store-users.ts
+│   │   ├── test-work-types.ts
+│   │   ├── test-shift-types.ts
+│   │   ├── test-weekly-templates.ts
+│   │   ├── test-availability-periods.ts
+│   │   ├── test-user-availability.ts
+│   │   ├── test-schedules.ts
+│   │   ├── test-assignments.ts
+│   │   ├── test-schedule-builder.ts
+│   │   └── test-cover-requests.ts
+│   └── test/database.mock.ts
+├── .env.example
+├── .gitignore
+├── docker-compose.yml
+├── jest.config.cjs
+├── prisma.config.ts
+├── package.json
+└── tsconfig.json
